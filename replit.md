@@ -1,6 +1,6 @@
-# [Project name]
+# DMV Notice Tracker
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A fictional Caltrans demo for ODCAST and district staff to manage DMV notices, driving eligibility, memos, actions, and supporting documents.
 
 ## Run & Operate
 
@@ -22,23 +22,33 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/dmv-tracker` — React frontend, root preview.
+- `artifacts/api-server/src/routes/demo.ts` — demo-session and district-scoped case endpoints.
+- `artifacts/api-server/src/lib/{tracker,seed,files}.ts` — case rules, seed records, private App Storage and PDFs.
+- `lib/api-spec/openapi.yaml` — API contract.
+- `lib/db/src/schema/tracker.ts` — Drizzle schema; `lib/db/schema.sql` is the initial schema reference, not a startup migration.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Passwordless user selection is intentional and user-requested: this is NOT production employee authentication. District scopes are enforced on the server even though anyone can select a demo persona.
+- Calendar logic uses the server's America/Los_Angeles date because this is a California departmental demo. Business days exclude weekends; holidays are not modeled.
+- Seed data is relative to the date of first startup, not reset on restart, so user edits persist. Daily expiration checks and overdue checks continue afterward.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Four demo users, scoped dashboard, CSV and daily sample imports, employee records, editable memo templates, downloadable PDF memos, private supporting-document uploads, action deadlines, case resolution and activity history.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- All data must remain fictional. Never connect DMV, Caltrans, or email services. Record simulated sends only.
+- Every page must show: "DEMO — sample data only, not real DMV or employee records."
+- Keep plain government styling: white, dark text, Caltrans blue #005A9C.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- PDFKit must remain external to the server bundle because it loads font assets from its package.
+- `node artifacts/api-server/check-demo.mjs` is a development API verification script for an isolated, unused demo. It restores its test records and unloads today's batch; never run against production or while users are editing.
+- Uploaded file bytes live in private App Storage, never PostgreSQL.
 
 ## Pointers
 

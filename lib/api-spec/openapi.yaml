@@ -1,36 +1,319 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 1.0.0
 servers:
   - url: /api
-    description: Base API path
-tags:
-  - name: health
-    description: Health operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
-      tags: [health]
-      summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/HealthStatus"
+              schema: {$ref: "#/components/schemas/HealthStatus"}
+  /demo/session:
+    get:
+      operationId: getSession
+      responses:
+        "200":
+          description: Session
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Session"}
+    post:
+      operationId: signIn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/LoginInput"}
+      responses:
+        "200":
+          description: Session
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Session"}
+    delete:
+      operationId: signOut
+      responses:
+        "200":
+          description: Signed out
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Result"}
+  /demo/state:
+    get:
+      operationId: getTrackerState
+      responses:
+        "200":
+          description: District scoped records and dashboard counts
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TrackerState"}
+  /demo/notices/{id}/operation:
+    post:
+      operationId: updateCase
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/CaseInput"}
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Result"}
+  /demo/import:
+    post:
+      operationId: importNotices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ImportInput"}
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ImportResult"}
+  /demo/templates/{id}:
+    put:
+      operationId: saveTemplate
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/TemplateInput"}
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Result"}
+  /demo/notices/{id}/upload-url:
+    post:
+      operationId: requestDocumentUpload
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/UploadInput"}
+      responses:
+        "200":
+          description: Upload URL
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/UploadResult"}
+  /demo/memos/{id}/pdf:
+    get:
+      operationId: downloadMemo
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200":
+          description: PDF memo
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
+  /demo/documents/{id}/download:
+    get:
+      operationId: downloadDocument
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200":
+          description: Document
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
-        status:
-          type: string
-      required:
-        - status
-
+        status: {type: string}
+    Result:
+      type: object
+      required: [message]
+      properties:
+        message: {type: string}
+    DemoUser:
+      type: object
+      required: [id, name, role, district]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        role: {type: string}
+        district: {type: [integer, "null"]}
+    Session:
+      type: object
+      required: [users, user, today]
+      properties:
+        users: {type: array, items: {$ref: "#/components/schemas/DemoUser"}}
+        user: {anyOf: [{$ref: "#/components/schemas/DemoUser"}, {type: "null"}]}
+        today: {type: string}
+    LoginInput:
+      type: object
+      required: [userId]
+      properties:
+        userId: {type: integer, minimum: 1, maximum: 4}
+    Employee:
+      type: object
+      required: [employee_id, first_name, last_name, district, unit, job_title, email, supervisor_name, supervisor_email, drives_for_department, license_number, license_class, license_expiration_date, medical_certificate_expiration_date, open_notices_count, driving_impact]
+      properties:
+        employee_id: {type: integer}
+        first_name: {type: string}
+        last_name: {type: string}
+        district: {type: integer}
+        unit: {type: string}
+        job_title: {type: string}
+        email: {type: string}
+        supervisor_name: {type: string}
+        supervisor_email: {type: string}
+        drives_for_department: {type: boolean}
+        license_number: {type: string}
+        license_class: {type: string}
+        license_expiration_date: {type: string}
+        medical_certificate_expiration_date: {type: [string, "null"]}
+        open_notices_count: {type: integer}
+        driving_impact: {type: string}
+    Notice:
+      type: object
+      required: [notice_id, received_date, license_number, matched_employee_id, notice_type, violation_or_event_date, effective_date, description, flag, driving_impact, status, source]
+      properties:
+        notice_id: {type: integer}
+        received_date: {type: string}
+        license_number: {type: string}
+        matched_employee_id: {type: [integer, "null"]}
+        notice_type: {type: string}
+        violation_or_event_date: {type: string}
+        effective_date: {type: [string, "null"]}
+        description: {type: string}
+        flag: {type: string}
+        driving_impact: {type: string}
+        status: {type: string}
+        source: {type: string}
+    Memo:
+      type: object
+      required: [memo_id, notice_id, created_by, created_date, to_employee_email, cc_supervisor_email, subject, body, status, sent_date]
+      properties:
+        memo_id: {type: integer}
+        notice_id: {type: integer}
+        created_by: {type: string}
+        created_date: {type: string}
+        to_employee_email: {type: string}
+        cc_supervisor_email: {type: string}
+        subject: {type: string}
+        body: {type: string}
+        status: {type: string}
+        sent_date: {type: [string, "null"]}
+    Action:
+      type: object
+      required: [action_id, notice_id, action_required, due_date, assigned_to, status]
+      properties:
+        action_id: {type: integer}
+        notice_id: {type: integer}
+        action_required: {type: string}
+        due_date: {type: string}
+        assigned_to: {type: string}
+        status: {type: string}
+    Document:
+      type: object
+      required: [document_id, notice_id, file_name, document_type, uploaded_by, uploaded_date]
+      properties:
+        document_id: {type: integer}
+        notice_id: {type: integer}
+        file_name: {type: string}
+        document_type: {type: string}
+        uploaded_by: {type: string}
+        uploaded_date: {type: string}
+    Activity:
+      type: object
+      required: [log_id, notice_id, user_name, action_text, timestamp]
+      properties:
+        log_id: {type: integer}
+        notice_id: {type: integer}
+        user_name: {type: string}
+        action_text: {type: string}
+        timestamp: {type: string}
+    Template:
+      type: object
+      required: [template_id, notice_type, subject, body]
+      properties:
+        template_id: {type: integer}
+        notice_type: {type: string}
+        subject: {type: string}
+        body: {type: string}
+    TrackerState:
+      type: object
+      required: [today, employees, notices, actions, memos, documents, activity, templates, batchLoaded, summary]
+      properties:
+        today: {type: string}
+        employees: {type: array, items: {$ref: "#/components/schemas/Employee"}}
+        notices: {type: array, items: {$ref: "#/components/schemas/Notice"}}
+        actions: {type: array, items: {$ref: "#/components/schemas/Action"}}
+        memos: {type: array, items: {$ref: "#/components/schemas/Memo"}}
+        documents: {type: array, items: {$ref: "#/components/schemas/Document"}}
+        activity: {type: array, items: {$ref: "#/components/schemas/Activity"}}
+        templates: {type: array, items: {$ref: "#/components/schemas/Template"}}
+        batchLoaded: {type: boolean}
+        summary: {type: object, additionalProperties: {type: integer}}
+    CaseInput:
+      type: object
+      required: [operation]
+      properties:
+        operation: {type: string, enum: [match, generateMemo, saveMemo, sendMemo, saveAction, ready, resolve, reopen, document]}
+        employeeId: {type: integer}
+        memoId: {type: integer}
+        subject: {type: string, maxLength: 1000}
+        body: {type: string, maxLength: 20000}
+        action_required: {type: string, maxLength: 5000}
+        due_date: {type: string, pattern: '^\d{4}-\d{2}-\d{2}$'}
+        assigned_to: {type: string, enum: [employee, supervisor, district staff]}
+        status: {type: string, enum: [Open, Done, Overdue]}
+        file_name: {type: string}
+        document_type: {type: string, enum: [DMV record printout, Court disposition, Reinstatement letter, Medical certificate, Renewed license copy, Other]}
+        objectPath: {type: string}
+    ImportInput:
+      type: object
+      properties:
+        csv: {type: string, maxLength: 1000000}
+    ImportResult:
+      type: object
+      required: [message, imported, matched, unmatched]
+      properties:
+        message: {type: string}
+        imported: {type: integer}
+        matched: {type: integer}
+        unmatched: {type: integer}
+    TemplateInput:
+      type: object
+      required: [subject, body]
+      properties:
+        subject: {type: string, minLength: 1, maxLength: 1000}
+        body: {type: string, minLength: 1, maxLength: 20000}
+    UploadInput:
+      type: object
+      required: [name, contentType, size]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 255}
+        contentType: {type: string, enum: [application/pdf, image/jpeg, image/png]}
+        size: {type: integer, minimum: 1, maximum: 10485760}
+    UploadResult:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL: {type: string}
+        objectPath: {type: string}

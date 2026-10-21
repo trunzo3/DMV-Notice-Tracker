@@ -1,0 +1,155 @@
+Build a working demo web app called "DMV Notice Tracker" for Caltrans. It helps ODCAST staff and district staff review DMV notices about employees' driver's licenses each day, flag current and upcoming problems, generate memos to the employee and their supervisor, assign an action with a due date, and collect documents that resolve each case.
+
+This is a demo. All data is fake and seeded inside the app. Do not connect to DMV, any Caltrans system, or any email service. Show a thin banner at the top of every page: "DEMO — sample data only, not real DMV or employee records."
+
+TECH
+- Use Replit's default full-stack setup and Replit's built-in PostgreSQL database.
+- Store uploaded files in the app's own storage.
+- Use today's date from the server for all date logic. Seed data must use dates relative to today (for example "today minus 3 days") so the demo always looks current.
+
+LOGIN
+- Login screen with a dropdown of demo users and a "Sign in" button. No passwords.
+- Demo users:
+  1. Maria Lopez — ODCAST Staff — sees all districts
+  2. James Chen — ODCAST Staff — sees all districts
+  3. Priya Nair — District Staff — District 3 only
+  4. Robert Hayes — District Staff — District 4 only
+- ODCAST Staff can see and act on every record, import notices, edit memo templates, and close cases.
+- District Staff can only see employees and notices in their own district. They can generate memos, update actions, upload documents, and mark a case "Ready for ODCAST review." They cannot close cases.
+- Show the signed-in user's name, role, and district in the top right, with a "Sign out" link.
+
+DATABASE TABLES
+1. employees (stands in for Caltrans employee data)
+   - employee_id, first_name, last_name, district (1–12), unit, job_title, email
+   - supervisor_name, supervisor_email
+   - drives_for_department (yes/no)
+   - license_number (fake format: one letter + 7 digits, e.g. D1234567)
+   - license_class (C, B, or A)
+   - license_expiration_date
+   - medical_certificate_expiration_date (only for class A and B)
+2. dmv_notices (stands in for the daily DMV feed)
+   - notice_id, received_date, license_number, matched_employee_id (nullable)
+   - notice_type: one of "Conviction/Violation", "Failure to Appear", "Suspension", "Revocation", "License Expiring", "License Expired", "Medical Certificate Expiring", "Accident Reported", "Reinstatement"
+   - violation_or_event_date, effective_date (date the DMV action takes effect, nullable)
+   - description (one plain sentence, e.g. "Speeding 15 mph over limit, Sacramento County")
+   - flag: "Current issue", "Upcoming issue", or "Informational" (calculated, see LOGIC)
+   - driving_impact: "Cleared to drive", "Review needed", or "Not cleared to drive" (calculated, see LOGIC)
+   - status: "New", "Memo sent", "Awaiting documents", "Ready for ODCAST review", "Resolved", "Overdue"
+3. memos
+   - memo_id, notice_id, created_by, created_date, to_employee_email, cc_supervisor_email, subject, body, status ("Draft" or "Sent"), sent_date
+4. actions
+   - action_id, notice_id, action_required (text), due_date, assigned_to (employee, supervisor, or district staff), status ("Open", "Done", "Overdue")
+5. documents
+   - document_id, notice_id, file_name, document_type ("DMV record printout", "Court disposition", "Reinstatement letter", "Medical certificate", "Renewed license copy", "Other"), uploaded_by, uploaded_date
+6. activity_log
+   - log_id, notice_id, user_name, action_text, timestamp
+   - Record every status change, memo generated, memo sent, document uploaded, and due date change.
+7. memo_templates
+   - one template per notice_type, editable by ODCAST Staff
+
+LOGIC
+Flag (calculate when a notice is imported or updated):
+- "Current issue" if notice_type is Suspension, Revocation, License Expired, or Failure to Appear AND effective_date is today or earlier (or empty).
+- "Upcoming issue" if effective_date is after today, OR notice_type is License Expiring or Medical Certificate Expiring.
+- "Informational" for Conviction/Violation, Accident Reported, and Reinstatement unless one of the rules above applies.
+
+Driving impact (only matters if the employee drives_for_department = yes; otherwise show "Not a driving position"):
+- "Not cleared to drive": Current issue of type Suspension, Revocation, or License Expired.
+- "Review needed": Failure to Appear, Accident Reported, Conviction/Violation, or any Upcoming issue.
+- "Cleared to drive": Reinstatement, or any case marked Resolved.
+- Also check every employee daily: if license_expiration_date or medical_certificate_expiration_date is within 60 days, create an "Upcoming issue" flag for them even without a DMV notice, and show it on the dashboard.
+
+Default due dates (set when the action is created; user can change):
+- Suspension, Revocation, License Expired: 1 business day after received_date
+- Failure to Appear: 5 business days
+- Conviction/Violation, Accident Reported: 10 business days
+- License Expiring, Medical Certificate Expiring: 7 days before the expiration date
+- Reinstatement: no action required
+- Any open action past its due date: set action status and notice status to "Overdue."
+
+Default action text by type:
+- Suspension/Revocation/License Expired: "Stop all department driving immediately. Submit proof of valid license or reinstatement."
+- Failure to Appear: "Resolve with the court and submit the court disposition."
+- Conviction/Violation: "Acknowledge the notice and submit a current DMV record printout."
+- Accident Reported: "Submit an accident report copy and a current DMV record printout."
+- License Expiring: "Renew license and submit a copy of the renewed license."
+- Medical Certificate Expiring: "Submit an updated medical certificate."
+
+SCREENS
+1. Dashboard (home after sign-in)
+   - Summary cards across the top, each clickable to filter the table: "New today", "Current issues", "Upcoming issues", "Not cleared to drive", "Overdue actions", "Awaiting documents".
+   - District filter dropdown (ODCAST Staff only; District Staff are locked to their district).
+   - Notice type filter and status filter.
+   - Table of notices: received date, employee name, district, notice type, flag (colored label: red Current, amber Upcoming, gray Informational), driving impact, action due date, status. Click a row to open Notice Detail.
+   - Sort by due date by default, soonest first, with Overdue at the top.
+
+2. Daily Import (ODCAST Staff only)
+   - Button "Load today's DMV notices." Clicking it loads a seeded batch of 6 new fake notices dated today and matches each to an employee by license_number.
+   - Also allow uploading a CSV with the columns: license_number, notice_type, violation_or_event_date, effective_date, description.
+   - After import, show: number imported, number matched, number unmatched.
+   - "Unmatched notices" list below, with a dropdown to pick an employee and a "Match" button.
+
+3. Notice Detail
+   - Left side: notice info (type, received date, event date, effective date, description), flag, driving impact.
+   - Right side: employee info (name, ID, district, unit, job title, drives for department, license class, license expiration, medical certificate expiration, supervisor name and email).
+   - Memo section:
+     - Button "Generate memo." Fills a draft from the template for this notice type, addressed to the employee with the supervisor copied.
+     - Editable subject and body.
+     - Button "Mark as sent." Records sent date and changes notice status to "Memo sent." Do not send real email; show a confirmation: "Memo recorded as sent (demo — no email sent)."
+     - Button "Download memo" that downloads the memo as a PDF.
+   - Action section: action text, due date (date picker), assigned to, status.
+   - Documents section: upload button (PDF, JPG, PNG), document type dropdown, list of uploaded files with download links. Uploading a document changes status from "Awaiting documents" to "Ready for ODCAST review."
+   - Buttons: "Mark ready for ODCAST review" (District Staff), "Mark resolved" and "Reopen" (ODCAST Staff).
+   - Activity log at the bottom, newest first.
+
+4. Employees
+   - Searchable list of employees (filtered by district for District Staff): name, district, drives for department, license expiration, medical certificate expiration, open notices count, current driving impact.
+   - Click an employee to see all their notices.
+
+5. Memo Templates (ODCAST Staff only)
+   - List of templates by notice type, each editable.
+   - Templates use these merge fields: {employee_name}, {employee_id}, {supervisor_name}, {notice_type}, {event_date}, {effective_date}, {description}, {action_required}, {due_date}, {sender_name}.
+   - Seed every template with this structure, adjusted for the notice type:
+     Subject: "Action required: DMV {notice_type} notice — due {due_date}"
+     Body:
+     "To: {employee_name} ({employee_id})
+     CC: {supervisor_name}
+
+     The Department received a DMV {notice_type} notice for your driver's license. Event date: {event_date}. Effective date: {effective_date}. Details: {description}.
+
+     Required action: {action_required}
+     Due date: {due_date}
+
+     Upload supporting documents through your supervisor or district staff contact. Contact {sender_name} with questions."
+
+SEED DATA (load on first start)
+- 40 employees spread across Districts 1–12, with at least 8 in District 3 and 8 in District 4. Use clearly fictional names. About 30 drive for the department. Mix of license classes C, B, and A.
+- 5 employees with license expiration within 60 days and 2 with medical certificates expiring within 60 days.
+- 25 existing DMV notices covering every notice type, received over the last 30 days, with a mix of statuses:
+  - 4 Current issues "Not cleared to drive" (at least one each in District 3 and District 4)
+  - 6 Upcoming issues
+  - 5 Overdue
+  - 4 Resolved, each with an uploaded sample document and a sent memo
+  - the rest New or Awaiting documents
+- 2 notices with license numbers that match no employee, sitting in the Unmatched list.
+- Generated sample PDF files for the seeded documents (a simple page that says "Sample document — demo only" with the document type and employee name).
+- Activity log entries for every seeded notice that has history.
+- The 6-notice "today's batch" for the Daily Import button, not loaded until the button is clicked.
+
+DESIGN
+- Clean, plain government-style layout. White background, dark text, one accent color (Caltrans blue #005A9C).
+- Left navigation: Dashboard, Daily Import (ODCAST only), Employees, Memo Templates (ODCAST only).
+- Must work on a laptop screen at 1280px wide and be readable on a tablet.
+- Use plain labels. No jargon.
+
+BEFORE YOU FINISH, CHECK EACH OF THESE AND FIX ANY THAT FAIL
+1. Sign in as each of the 4 demo users. District Staff see only their district's records.
+2. The Dashboard summary cards show non-zero counts and filter the table when clicked.
+3. Clicking "Load today's DMV notices" adds 6 notices dated today, and "New today" increases by 6.
+4. Matching an unmatched notice to an employee moves it out of the Unmatched list.
+5. On a Suspension notice: Generate memo, edit it, Mark as sent, and download the PDF. Status changes to "Memo sent."
+6. Upload a document on an "Awaiting documents" notice. Status changes to "Ready for ODCAST review."
+7. As ODCAST Staff, mark it resolved. Driving impact changes to "Cleared to drive."
+8. An action with a past due date shows as Overdue on the Dashboard.
+9. Every action above appears in that notice's activity log.
+10. Editing a memo template changes the next memo generated from it.
